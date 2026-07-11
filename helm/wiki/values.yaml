@@ -27,8 +27,8 @@ imagePullSecrets: []
 oidc:
   # Discovery URL of your realm. Must be reachable from BOTH the backend pod and
   # the user's browser at the same URL.
-  issuerUri: "https://id.oglimmer.de/realms/wiki"
-  clientId: "wiki-app"
+  issuerUri: "https://id.oglimmer.de/realms/oglimmer"
+  clientId: "playground-app-1"
   # clientSecret comes from the Secret key OIDC_CLIENT_SECRET (never set here).
 
 # ── Backend (Spring Boot) ────────────────────────────────────────────────────

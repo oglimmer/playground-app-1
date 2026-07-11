@@ -13,22 +13,22 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/oglimmer/wiki.git   # <-- set to your repo
-    targetRevision: main
+    repoURL: https://github.com/oglimmer/playground-app-1.git
+    targetRevision: master
     path: helm/wiki
     helm:
       valuesObject:
         ingress:
-          host: wiki.example.com
+          host: wiki.oglimmer.com
         oidc:
-          issuerUri: https://id.oglimmer.de/realms/wiki
-          clientId: wiki-app
+          issuerUri: https://id.oglimmer.de/realms/oglimmer
+          clientId: playground-app-1
         backend:
           image:
-            tag: "0.1.0"
+            tag: "0.1.1"
         frontend:
           image:
-            tag: "0.1.0"
+            tag: "0.1.1"
   destination:
     server: https://kubernetes.default.svc
     namespace: wiki
