@@ -113,14 +113,14 @@ service:
   frontendPort: 80
 
 # ── Ingress ──────────────────────────────────────────────────────────────────
-# Single host; /api routed to the backend, everything else to the frontend SPA.
+# Single host on the k3s Traefik ingress; /api routed to the backend, everything
+# else to the frontend SPA. cert-manager (oglimmer-com-dns issuer) provisions TLS.
 ingress:
   enabled: true
-  className: nginx
+  className: traefik
   annotations:
     cert-manager.io/cluster-issuer: "oglimmer-com-dns"
-    nginx.ingress.kubernetes.io/proxy-body-size: "2m"
-  host: wiki.example.com
+  host: wiki.oglimmer.com
   tls:
     enabled: true
-    secretName: wiki-tls
+    secretName: tls-wiki-ingress-dns
