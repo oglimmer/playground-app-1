@@ -10,6 +10,23 @@ metadata:
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
+  annotations:
+    # argocd-image-updater: polls ghcr for the digest behind :latest and pins it
+    # into the app (argocd write-back -> spec.source.helm.parameters), triggering a
+    # sync + rollout. Immutable, traceable, rollback-able. The pinned param
+    # overrides the valuesObject tag below.
+    # NOTE: this chart uses NESTED per-component image values (backend.image.*),
+    # not image-updater's default image.name/image.tag — hence the explicit
+    # helm.image-name / helm.image-tag mappings per alias.
+    # If the ghcr packages are private, add e.g.
+    #   argocd-image-updater.argoproj.io/backend.pull-secret: pullsecret:argocd/ghcr
+    argocd-image-updater.argoproj.io/image-list: "backend=ghcr.io/oglimmer/wiki-backend:latest,frontend=ghcr.io/oglimmer/wiki-frontend:latest"
+    argocd-image-updater.argoproj.io/backend.update-strategy: digest
+    argocd-image-updater.argoproj.io/backend.helm.image-name: backend.image.repository
+    argocd-image-updater.argoproj.io/backend.helm.image-tag: backend.image.tag
+    argocd-image-updater.argoproj.io/frontend.update-strategy: digest
+    argocd-image-updater.argoproj.io/frontend.helm.image-name: frontend.image.repository
+    argocd-image-updater.argoproj.io/frontend.helm.image-tag: frontend.image.tag
 spec:
   project: default
   source:
@@ -23,10 +40,10 @@ spec:
         oidc:
           issuerUri: https://id.oglimmer.de/realms/oglimmer
           clientId: playground-app-1
-        # Continuous deploy: prod tracks the mutable :latest tag. build.yml pushes
-        # :latest on every push to master and does a `kubectl rollout restart`
-        # (pullPolicy: Always) to pull it. ArgoCD keeps the manifests in sync but
-        # does NOT drive image rollouts here — the tag string never changes.
+        # Initial tag before image-updater pins a digest. image-updater writes a
+        # helm parameter (backend.image.tag=latest@sha256:…) that overrides this.
+        # build.yml still pushes :latest + rollout-restarts as a fast fallback until
+        # image-updater is verified; once it is, the restart hook can be dropped.
         backend:
           image:
             tag: "latest"
