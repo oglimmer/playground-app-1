@@ -13,7 +13,7 @@
 
     <groupId>com.oglimmer</groupId>
     <artifactId>wiki</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.1</version>
     <name>wiki</name>
     <description>Approval-gated Markdown wiki (Spring Boot + Keycloak OIDC)</description>
 
