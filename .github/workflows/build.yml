@@ -1,11 +1,13 @@
-# build.yml — CI-gated deploy: run tests, then build/push images and roll out.
+# build.yml — CI-gated build & push. Rollout is NOT done here.
 # Runner: arc-playground-app-1 (in-cluster ARC scale set, arm64 + dind — no hosted minutes).
 # Trigger: push to master + manual. Images: ghcr.io/oglimmer/wiki-{backend,frontend}.
 # The `test` job runs the full ci.yml suite via workflow_call; the build jobs
-# `needs:` it, so a red build blocks the deploy (dependents are skipped).
-# All build/push/restart logic lives in ./oglimmer.sh; this workflow only logs in
-# and invokes it with --platform auto (plain docker build/push — buildx's
-# docker-container driver loses its push session against the registry ingress).
+# `needs:` it, so a red build blocks the push (dependents are skipped).
+# This workflow only builds/pushes :latest (--no-restart). Deployment is owned by
+# argocd-image-updater: it polls ghcr, pins the new :latest digest into the wiki
+# ArgoCD app, and ArgoCD rolls it out. See helm/argocd/wiki-app.yaml.
+# --platform auto = plain docker build/push (buildx's docker-container driver
+# loses its push session against the registry ingress).
 name: build
 
 on:
@@ -61,10 +63,8 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build, push & restart backend
-        env:
-          RESTART_TOKEN: ${{ secrets.RESTART_TOKEN }}
-        run: ./oglimmer.sh build -b --platform auto --verbose
+      - name: Build & push backend
+        run: ./oglimmer.sh build -b --platform auto --no-restart --verbose
 
   frontend:
     needs: [changes, test]
@@ -78,7 +78,5 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build, push & restart frontend
-        env:
-          RESTART_TOKEN: ${{ secrets.RESTART_TOKEN }}
-        run: ./oglimmer.sh build -f --platform auto --verbose
+      - name: Build & push frontend
+        run: ./oglimmer.sh build -f --platform auto --no-restart --verbose
