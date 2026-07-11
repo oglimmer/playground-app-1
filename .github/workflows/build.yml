@@ -1,6 +1,6 @@
 # build.yml — build/push images to ghcr.io and roll out the deployments.
-# Runner: arc-wiki (in-cluster ARC scale set, arm64 + dind — no hosted minutes).
-# Trigger: push to main + manual. Images: ghcr.io/oglimmer/wiki-{backend,frontend}.
+# Runner: arc-playground-app-1 (in-cluster ARC scale set, arm64 + dind — no hosted minutes).
+# Trigger: push to master + manual. Images: ghcr.io/oglimmer/wiki-{backend,frontend}.
 # All build/push/restart logic lives in ./oglimmer.sh; this workflow only logs in
 # and invokes it with --platform auto (plain docker build/push — buildx's
 # docker-container driver loses its push session against the registry ingress).
@@ -44,7 +44,7 @@ jobs:
   backend:
     needs: changes
     if: needs.changes.outputs.backend == 'true'
-    runs-on: arc-wiki
+    runs-on: arc-playground-app-1
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -61,7 +61,7 @@ jobs:
   frontend:
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
-    runs-on: arc-wiki
+    runs-on: arc-playground-app-1
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4

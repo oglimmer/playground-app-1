@@ -1,4 +1,4 @@
-# Declare the self-hosted ARC scale-set label so actionlint accepts runs-on: arc-wiki.
+# Declare the self-hosted ARC scale-set label so actionlint accepts runs-on: arc-playground-app-1.
 self-hosted-runner:
   labels:
-    - arc-wiki
+    - arc-playground-app-1
