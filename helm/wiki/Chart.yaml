@@ -1,0 +1,8 @@
+apiVersion: v2
+name: wiki
+description: Approval-gated Markdown wiki (Spring Boot backend + Vue frontend + Postgres, Keycloak OIDC)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+maintainers:
+  - name: Oli

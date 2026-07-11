@@ -1,0 +1,126 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# wiki — Helm values (the operator manual). The chart creates NO Secret; supply
+# one out-of-band (SealedSecret / external secret) and reference it here.
+#
+# Required secret keys (see `existingSecret` below):
+#   POSTGRES_PASSWORD    always — DB password (bundled DB user, or external DB)
+#   OIDC_CLIENT_SECRET   always — Keycloak client secret
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Name of a pre-created Secret holding the keys above.
+# Empty -> defaults to "<release>-wiki-secret".
+existingSecret: ""
+
+nameOverride: ""
+fullnameOverride: ""
+
+# ghcr.io packages are private by default. If the wiki packages are private,
+# create a docker-registry pull secret and list it here, e.g.:
+#   kubectl -n wiki create secret docker-registry ghcr-pull \
+#     --docker-server=ghcr.io --docker-username=<gh-user> \
+#     --docker-password=<PAT with read:packages> --docker-email=<email>
+# (Make the packages public instead and this can stay empty.)
+imagePullSecrets: []
+#  - name: ghcr-pull
+
+# ── Keycloak / OIDC ──────────────────────────────────────────────────────────
+oidc:
+  # Discovery URL of your realm. Must be reachable from BOTH the backend pod and
+  # the user's browser at the same URL.
+  issuerUri: "https://id.oglimmer.de/realms/wiki"
+  clientId: "wiki-app"
+  # clientSecret comes from the Secret key OIDC_CLIENT_SECRET (never set here).
+
+# ── Backend (Spring Boot) ────────────────────────────────────────────────────
+backend:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/oglimmer/wiki-backend
+    pullPolicy: IfNotPresent
+    # Pin by digest in prod (ArgoCD image-updater writes "@sha256:…").
+    # Empty -> chart appVersion.
+    tag: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      memory: 768Mi
+  # JVM writes to /tmp; mounted as emptyDir so the root FS can stay read-only.
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: [ALL]
+
+# ── Frontend (nginx serving the Vue build) ───────────────────────────────────
+frontend:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/oglimmer/wiki-frontend
+    pullPolicy: IfNotPresent
+    tag: ""
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+  # stock nginx:alpine needs CHOWN/SETUID/SETGID for its cache dirs at startup.
+  securityContext: {}
+
+# ── Bundled Postgres (StatefulSet + PVC) ─────────────────────────────────────
+# Set enabled=false to use an external DB; then set backend DB_URL/username via
+# externalDatabase and keep POSTGRES_PASSWORD in the secret.
+postgres:
+  enabled: true
+  image:
+    # Pin the MAJOR version — the PVC data dir is tied to it; a major bump makes
+    # Postgres refuse to start. Freeze this in renovate.json.
+    repository: postgres
+    tag: "17-alpine"
+    pullPolicy: IfNotPresent
+  database: wiki
+  username: wiki
+  storage:
+    size: 5Gi
+    # storageClassName: ""   # cluster default if unset
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+externalDatabase:
+  # Used only when postgres.enabled=false.
+  url: "jdbc:postgresql://my-db-host:5432/wiki"
+  username: "wiki"
+
+# ── Pod scheduling / security ────────────────────────────────────────────────
+podSecurityContext:
+  fsGroup: 1001
+
+serviceAccount:
+  create: true
+  name: ""
+
+service:
+  type: ClusterIP
+  backendPort: 8080
+  frontendPort: 80
+
+# ── Ingress ──────────────────────────────────────────────────────────────────
+# Single host; /api routed to the backend, everything else to the frontend SPA.
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: "oglimmer-com-dns"
+    nginx.ingress.kubernetes.io/proxy-body-size: "2m"
+  host: wiki.example.com
+  tls:
+    enabled: true
+    secretName: wiki-tls

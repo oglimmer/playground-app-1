@@ -1,0 +1,32 @@
+wiki has been deployed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+{{- if .Values.ingress.enabled }}
+
+  URL:  https://{{ .Values.ingress.host }}/
+
+  The Ingress routes:
+    /api  -> {{ include "wiki.backend.fullname" . }}:{{ .Values.service.backendPort }}
+    /     -> {{ include "wiki.frontend.fullname" . }}:{{ .Values.service.frontendPort }}
+{{- else }}
+
+  Ingress is disabled. Reach the app by port-forwarding the frontend service:
+    kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "wiki.frontend.fullname" . }} 8080:{{ .Values.service.frontendPort }}
+{{- end }}
+
+Secret in use: {{ include "wiki.secretName" . }}
+  Required keys: POSTGRES_PASSWORD, OIDC_CLIENT_SECRET
+{{- if not (or .Values.existingSecret false) }}
+
+  NOTE: no `existingSecret` set — the chart expects "{{ include "wiki.secretName" . }}".
+  Create it before/after install, e.g.:
+
+    kubectl -n {{ .Release.Namespace }} create secret generic {{ include "wiki.secretName" . }} \
+      --from-literal=POSTGRES_PASSWORD='<db-password>' \
+      --from-literal=OIDC_CLIENT_SECRET='<keycloak-client-secret>'
+{{- end }}
+
+OIDC issuer: {{ .Values.oidc.issuerUri }}
+  Ensure the Keycloak client "{{ .Values.oidc.clientId }}" allows the redirect URI:
+    https://{{ .Values.ingress.host }}/api/login/oauth2/code/keycloak
+
+The first user to log in becomes the approved admin.

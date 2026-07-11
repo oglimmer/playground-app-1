@@ -1,0 +1,40 @@
+# ArgoCD Application — syncs the Helm chart from this repo.
+# Apply with: kubectl apply -f helm/argocd/wiki-app.yaml
+#
+# The Secret (POSTGRES_PASSWORD, OIDC_CLIENT_SECRET) is managed separately — as a
+# SealedSecret or external secret — so rotating it needs no chart change.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: wiki
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/oglimmer/wiki.git   # <-- set to your repo
+    targetRevision: main
+    path: helm/wiki
+    helm:
+      valuesObject:
+        ingress:
+          host: wiki.example.com
+        oidc:
+          issuerUri: https://id.oglimmer.de/realms/wiki
+          clientId: wiki-app
+        backend:
+          image:
+            tag: "0.1.0"
+        frontend:
+          image:
+            tag: "0.1.0"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: wiki
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

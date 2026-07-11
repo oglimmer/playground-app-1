@@ -1,0 +1,79 @@
+# release.yml — tagged releases. Runner: ubuntu-latest (hosted, QEMU + buildx).
+# Trigger: push of a v* tag (created by ./oglimmer.sh release). Builds reproducible
+# MULTI-ARCH images (amd64 + arm64) tagged :vX.Y.Z and :latest, pushes to ghcr.io,
+# and publishes a GitHub Release. Everyday :latest arm64 builds stay in build.yml.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        component: [backend, frontend]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - id: meta
+        run: |
+          {
+            echo "version=${GITHUB_REF_NAME#v}"
+            echo "commit=$(git rev-parse --short HEAD)"
+            echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-qemu-action@49b3bc8e6bdd4a60e6116a5414239cba5943d3cf # v3
+      - uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3
+      - uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build backend args
+        if: matrix.component == 'backend'
+        run: |
+          {
+            echo "BUILD_ARGS<<EOF"
+            echo "VERSION=${{ steps.meta.outputs.version }}"
+            echo "GIT_COMMIT=${{ steps.meta.outputs.commit }}"
+            echo "BUILD_TIME=${{ steps.meta.outputs.build_time }}"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+      - name: Build frontend args
+        if: matrix.component == 'frontend'
+        run: |
+          {
+            echo "BUILD_ARGS<<EOF"
+            echo "VITE_APP_VERSION=${{ steps.meta.outputs.version }}"
+            echo "VITE_GIT_COMMIT=${{ steps.meta.outputs.commit }}"
+            echo "VITE_BUILD_TIME=${{ steps.meta.outputs.build_time }}"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+      - uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6
+        with:
+          context: ./${{ matrix.component }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/oglimmer/wiki-${{ matrix.component }}:${{ steps.meta.outputs.version }}
+            ghcr.io/oglimmer/wiki-${{ matrix.component }}:latest
+          build-args: ${{ env.BUILD_ARGS }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  gh-release:
+    needs: images
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2
+        with:
+          generate_release_notes: true

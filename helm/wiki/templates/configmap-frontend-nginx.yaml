@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "wiki.frontend.fullname" . }}-nginx
+  labels:
+    {{- include "wiki.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+data:
+  # In k8s the Ingress routes /api to the backend, so nginx here only serves the
+  # SPA (no /api proxy — that is the compose-only concern in frontend/nginx.conf).
+  default.conf: |
+    server {
+      listen 80;
+      server_name _;
+      root /usr/share/nginx/html;
+      index index.html;
+
+      location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+      }
+
+      location / {
+        add_header Cache-Control "no-cache";
+        try_files $uri $uri/ /index.html;
+      }
+    }

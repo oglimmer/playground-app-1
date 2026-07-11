@@ -1,0 +1,32 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:wiki;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: test-client
+            client-secret: test-secret
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/keycloak"
+            scope: openid,profile,email
+            provider: keycloak
+        # Explicit endpoints (no discovery/network call at startup).
+        provider:
+          keycloak:
+            authorization-uri: http://localhost:0/auth
+            token-uri: http://localhost:0/token
+            jwk-set-uri: http://localhost:0/certs
+            user-info-uri: http://localhost:0/userinfo
+            user-name-attribute: preferred_username

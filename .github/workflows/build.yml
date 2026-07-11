@@ -1,0 +1,76 @@
+# build.yml — build/push images to ghcr.io and roll out the deployments.
+# Runner: arc-wiki (in-cluster ARC scale set, arm64 + dind — no hosted minutes).
+# Trigger: push to main + manual. Images: ghcr.io/oglimmer/wiki-{backend,frontend}.
+# All build/push/restart logic lives in ./oglimmer.sh; this workflow only logs in
+# and invokes it with --platform auto (plain docker build/push — buildx's
+# docker-container driver loses its push session against the registry ingress).
+name: build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'oglimmer.sh'
+              - '.github/workflows/build.yml'
+            frontend:
+              - 'frontend/**'
+              - 'oglimmer.sh'
+              - '.github/workflows/build.yml'
+
+  backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: arc-wiki
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build, push & restart backend
+        env:
+          RESTART_TOKEN: ${{ secrets.RESTART_TOKEN }}
+        run: ./oglimmer.sh build -b --platform auto --verbose
+
+  frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: arc-wiki
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build, push & restart frontend
+        env:
+          RESTART_TOKEN: ${{ secrets.RESTART_TOKEN }}
+        run: ./oglimmer.sh build -f --platform auto --verbose

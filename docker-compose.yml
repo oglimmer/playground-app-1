@@ -1,0 +1,82 @@
+# Local infrastructure for the wiki: Postgres + a pre-seeded Keycloak realm.
+#
+# Recommended dev flow keeps the app on the host so the browser and the backend
+# both reach Keycloak at the same http://localhost:8081 origin (avoids OIDC
+# issuer-mismatch headaches you get when the backend runs in a container):
+#
+#   docker compose up -d              # start postgres + keycloak
+#   (cd backend  && ./mvnw spring-boot:run)
+#   (cd frontend && npm run dev)      # open http://localhost:5173
+#
+# The optional "app" profile also builds and runs the backend + frontend images:
+#   docker compose --profile app up --build
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: wiki
+      POSTGRES_USER: wiki
+      POSTGRES_PASSWORD: wiki
+    ports:
+      # Host 5433 to avoid clashing with a local Postgres already on 5432.
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wiki -d wiki"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    command: ["start-dev", "--import-realm", "--http-port=8080"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./keycloak/wiki-realm.json:/opt/keycloak/data/import/wiki-realm.json:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    profiles: ["app"]
+    build: ./backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/wiki
+      DB_USERNAME: wiki
+      DB_PASSWORD: wiki
+      OIDC_ISSUER_URI: http://localhost:8081/realms/wiki
+      OIDC_CLIENT_ID: wiki-app
+      OIDC_CLIENT_SECRET: wiki-app-secret
+    # NOTE: with the backend in a container, http://localhost:8081 is not the
+    # Keycloak container. Point OIDC_ISSUER_URI at a host reachable from BOTH
+    # the browser and this container (e.g. a LAN hostname) before using this
+    # profile. The host-based dev flow above needs no such tweak.
+    ports:
+      - "8080:8080"
+
+  frontend:
+    profiles: ["app"]
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  pgdata:

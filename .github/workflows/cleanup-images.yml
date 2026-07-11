@@ -1,0 +1,28 @@
+# cleanup-images.yml — registry hygiene. Runner: ubuntu-latest.
+# Trigger: daily cron + manual. Every :latest push leaves the previous digest as
+# an untagged ghcr.io version; without pruning they pile up. Tagged versions
+# (:latest, :vX.Y.Z) are always kept.
+name: cleanup-images
+
+on:
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  packages: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        package: [wiki-backend, wiki-frontend]
+    steps:
+      - uses: dataaxiom/ghcr-cleanup-action@cd0cdb37c2f1c2ee36bebc93aa2b3cf4bcf26d81 # v1
+        with:
+          package: ${{ matrix.package }}
+          owner: oglimmer
+          delete-untagged: true
+          token: ${{ secrets.GITHUB_TOKEN }}
