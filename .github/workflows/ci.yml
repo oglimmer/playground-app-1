@@ -1,5 +1,6 @@
-# ci.yml — pull-request + main quality gate.
-# Runner: ubuntu-latest (GitHub-hosted). Trigger: every PR, and push to main.
+# ci.yml — quality gate. Runner: ubuntu-latest (GitHub-hosted).
+# Triggers: every PR (standalone gate) and workflow_call (build.yml runs this as a
+# pre-deploy gate on push to master — deploy only proceeds if this passes).
 # Path-filtered lint/typecheck/test/compile per component. No Docker builds here
 # (images are built by build.yml on the ARC runner). Mirrors the local checks:
 #   backend  -> ./mvnw spotless:check + verify
@@ -7,10 +8,9 @@
 name: ci
 
 on:
-  push:
-    branches: [master]
   pull_request:
   workflow_dispatch:
+  workflow_call:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}

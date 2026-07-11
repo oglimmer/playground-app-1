@@ -23,15 +23,27 @@ spec:
         oidc:
           issuerUri: https://id.oglimmer.de/realms/oglimmer
           clientId: playground-app-1
+        # Continuous deploy: prod tracks the mutable :latest tag. build.yml pushes
+        # :latest on every push to master and does a `kubectl rollout restart`
+        # (pullPolicy: Always) to pull it. ArgoCD keeps the manifests in sync but
+        # does NOT drive image rollouts here — the tag string never changes.
         backend:
           image:
-            tag: "0.1.1"
+            tag: "latest"
         frontend:
           image:
-            tag: "0.1.1"
+            tag: "latest"
   destination:
     server: https://kubernetes.default.svc
     namespace: wiki
+  # build.yml's rollout restart stamps spec.template.metadata.annotations
+  # "kubectl.kubernetes.io/restartedAt". That's not in the rendered chart, so
+  # selfHeal would otherwise revert it and fight the restart — ignore it.
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jqPathExpressions:
+        - '.spec.template.metadata.annotations."kubectl.kubernetes.io/restartedAt"'
   syncPolicy:
     automated:
       prune: true

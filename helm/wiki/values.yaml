@@ -36,8 +36,9 @@ backend:
   replicaCount: 1
   image:
     repository: ghcr.io/oglimmer/wiki-backend
-    pullPolicy: IfNotPresent
-    # Pin by digest in prod (ArgoCD image-updater writes "@sha256:…").
+    # Continuous deploy: prod runs a mutable :latest tag (see helm/argocd/wiki-app.yaml).
+    # Always so a `rollout restart` from build.yml actually pulls the freshly pushed image.
+    pullPolicy: Always
     # Empty -> chart appVersion.
     tag: ""
   resources:
@@ -60,7 +61,8 @@ frontend:
   replicaCount: 1
   image:
     repository: ghcr.io/oglimmer/wiki-frontend
-    pullPolicy: IfNotPresent
+    # Always -> restart pulls the freshly pushed :latest (see backend note above).
+    pullPolicy: Always
     tag: ""
   resources:
     requests:

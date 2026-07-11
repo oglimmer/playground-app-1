@@ -1,6 +1,8 @@
-# build.yml — build/push images to ghcr.io and roll out the deployments.
+# build.yml — CI-gated deploy: run tests, then build/push images and roll out.
 # Runner: arc-playground-app-1 (in-cluster ARC scale set, arm64 + dind — no hosted minutes).
 # Trigger: push to master + manual. Images: ghcr.io/oglimmer/wiki-{backend,frontend}.
+# The `test` job runs the full ci.yml suite via workflow_call; the build jobs
+# `needs:` it, so a red build blocks the deploy (dependents are skipped).
 # All build/push/restart logic lives in ./oglimmer.sh; this workflow only logs in
 # and invokes it with --platform auto (plain docker build/push — buildx's
 # docker-container driver loses its push session against the registry ingress).
@@ -41,8 +43,14 @@ jobs:
               - 'oglimmer.sh'
               - '.github/workflows/build.yml'
 
+  # Pre-deploy quality gate: full lint/typecheck/test/build suite. The build jobs
+  # depend on this, so deploy only happens on green. Cheap when nothing relevant
+  # changed — ci.yml's own path filter skips its component jobs.
+  test:
+    uses: ./.github/workflows/ci.yml
+
   backend:
-    needs: changes
+    needs: [changes, test]
     if: needs.changes.outputs.backend == 'true'
     runs-on: arc-playground-app-1
     timeout-minutes: 30
@@ -59,7 +67,7 @@ jobs:
         run: ./oglimmer.sh build -b --platform auto --verbose
 
   frontend:
-    needs: changes
+    needs: [changes, test]
     if: needs.changes.outputs.frontend == 'true'
     runs-on: arc-playground-app-1
     timeout-minutes: 30
