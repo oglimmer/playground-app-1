@@ -25,6 +25,6 @@ describe('api.listPages tag filtering', () => {
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(new Response('[]', { status: 200 }))
     await api.listTags()
-    expect(fetchMock).toHaveBeenCalledWith('/api/pages/tags', expect.anything())
+    expect(fetchMock).toHaveBeenCalledWith('/api/tags', expect.anything())
   })
 })

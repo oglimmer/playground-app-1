@@ -65,7 +65,7 @@ export const api = {
 
   listPages: (tag?: string) =>
     request<PageSummary[]>('GET', tag ? `/pages?tag=${encodeURIComponent(tag)}` : '/pages'),
-  listTags: () => request<string[]>('GET', '/pages/tags'),
+  listTags: () => request<string[]>('GET', '/tags'),
   getPage: (slug: string) => request<Page>('GET', `/pages/${encodeURIComponent(slug)}`),
   createPage: (req: SavePageRequest) => request<Page>('POST', '/pages', req),
   updatePage: (slug: string, req: SavePageRequest) =>

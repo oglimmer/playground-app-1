@@ -42,12 +42,6 @@ public class PageController {
                 : pageService.listByTag(tag.trim().toLowerCase(Locale.ROOT));
     }
 
-    @GetMapping("/tags")
-    public List<String> tags() {
-        currentUserService.requireApproved();
-        return pageService.listTags();
-    }
-
     @GetMapping("/{slug}")
     public PageDto get(@PathVariable String slug) {
         currentUserService.requireApproved();
