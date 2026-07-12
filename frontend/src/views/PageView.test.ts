@@ -97,6 +97,51 @@ describe('PageView attachments', () => {
     expect(link.text()).toContain('5.0 KB')
   })
 
+  it('opens a full-size overlay when an image is clicked and closes on overlay click', async () => {
+    const pageData = {
+      slug: 'my-page',
+      title: 'Test Page',
+      content: 'Hello',
+      tags: [],
+      attachments: [{ id: 'img-1', filename: 'photo.png', contentType: 'image/png', size: 1024 }],
+      createdAt: '2025-01-01T00:00:00Z',
+      updatedAt: '2025-01-02T00:00:00Z',
+      updatedBy: 'tester',
+    }
+
+    vi.spyOn(api, 'getPage').mockResolvedValue(pageData)
+    vi.spyOn(api, 'fetchAttachmentBlobUrl').mockResolvedValue('blob:mock-img-1')
+
+    const wrapper = mount(PageView, {
+      props: { slug: 'my-page' },
+      global: { plugins: [router] },
+    })
+
+    await flushPromises()
+    await nextTick()
+    await flushPromises()
+    await nextTick()
+
+    // Click the image to open the zoom overlay
+    const img = wrapper.find('img.attachment-image')
+    expect(img.exists()).toBe(true)
+    await img.trigger('click')
+
+    // The overlay should now be visible, teleported to body
+    const overlay = document.querySelector('.zoom-overlay') as HTMLElement
+    expect(overlay).not.toBeNull()
+    const overlayImg = overlay!.querySelector('.zoom-image') as HTMLImageElement
+    expect(overlayImg).not.toBeNull()
+    expect(overlayImg.src).toBe('blob:mock-img-1')
+
+    // Click the overlay to close the zoom
+    overlay!.click()
+    await nextTick()
+
+    // The overlay should be gone
+    expect(document.querySelector('.zoom-overlay')).toBeNull()
+  })
+
   it('shows an error placeholder when an image fails to load', async () => {
     const pageData = {
       slug: 'my-page',
