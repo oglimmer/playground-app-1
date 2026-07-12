@@ -13,6 +13,7 @@ export interface User {
 export interface PageSummary {
   slug: string
   title: string
+  tags: string[]
   updatedAt: string
   updatedBy: string
 }
@@ -21,6 +22,7 @@ export interface Page {
   slug: string
   title: string
   content: string
+  tags: string[]
   createdAt: string
   updatedAt: string
   updatedBy: string
@@ -29,4 +31,5 @@ export interface Page {
 export interface SavePageRequest {
   title: string
   content: string
+  tags: string[]
 }

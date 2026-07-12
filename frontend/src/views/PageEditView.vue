@@ -10,6 +10,7 @@ const router = useRouter()
 const isEdit = computed(() => !!props.slug)
 const title = ref('')
 const content = ref('')
+const tags = ref('')
 const loading = ref(false)
 const saving = ref(false)
 const error = ref<string | null>(null)
@@ -25,6 +26,7 @@ onMounted(async () => {
     const page = await api.getPage(props.slug)
     title.value = page.title
     content.value = page.content
+    tags.value = (page.tags ?? []).join(', ')
   } catch (e) {
     error.value = errMsg(e)
   } finally {
@@ -37,7 +39,14 @@ async function save() {
   saving.value = true
   error.value = null
   try {
-    const body = { title: title.value.trim(), content: content.value }
+    const body = {
+      title: title.value.trim(),
+      content: content.value,
+      tags: tags.value
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean),
+    }
     const saved = props.slug
       ? await api.updatePage(props.slug, body)
       : await api.createPage(body)
@@ -72,6 +81,13 @@ function cancel() {
       <div v-if="error" class="state state-error">{{ error }}</div>
 
       <input v-model="title" class="input title" type="text" placeholder="Page title">
+
+      <input
+        v-model="tags"
+        class="input tags-input"
+        type="text"
+        placeholder="Tags (comma-separated)"
+      >
 
       <div class="tabs">
         <button class="tab" :class="{ active: mode === 'write' }" @click="mode = 'write'">

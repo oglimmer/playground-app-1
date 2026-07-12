@@ -39,6 +39,19 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/tags',
+      name: 'tags',
+      component: () => import('./views/TagsIndexView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/tags/:tag',
+      name: 'tag',
+      component: () => import('./views/PageIndexView.vue'),
+      props: true,
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/admin',
       name: 'admin',
       component: () => import('./views/AdminView.vue'),

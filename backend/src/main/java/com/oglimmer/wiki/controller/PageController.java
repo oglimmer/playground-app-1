@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -33,9 +34,17 @@ public class PageController {
     private final CurrentUserService currentUserService;
 
     @GetMapping
-    public List<PageSummaryDto> list() {
+    public List<PageSummaryDto> list(@RequestParam(required = false) String tag) {
         currentUserService.requireApproved();
-        return pageService.list();
+        return (tag == null || tag.isBlank())
+                ? pageService.list()
+                : pageService.listByTag(tag.trim().toLowerCase());
+    }
+
+    @GetMapping("/tags")
+    public List<String> tags() {
+        currentUserService.requireApproved();
+        return pageService.listTags();
     }
 
     @GetMapping("/{slug}")
