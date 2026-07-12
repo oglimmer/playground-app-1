@@ -76,6 +76,18 @@ describe('wiki page links', () => {
     expect(html).not.toContain('/pages/page-name')
   })
 
+  it('does not match /PageName inside inline link text', () => {
+    const html = renderMarkdown('[go /foo](https://example.com)')
+    // The original link should be preserved — no nested /pages/ link injected
+    expect(html).not.toContain('/pages/foo')
+    expect(html).toContain('https://example.com')
+  })
+
+  it('does not match /PageName inside reference link text', () => {
+    const html = renderMarkdown('[see /bar][1]\n\n[1]: https://example.com')
+    expect(html).not.toContain('/pages/bar')
+  })
+
   it('does not process /PageName inside inline code', () => {
     const html = renderMarkdown('use `/api` to call')
     expect(html).toContain('<code>/api</code>')

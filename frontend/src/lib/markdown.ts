@@ -22,6 +22,11 @@ function preprocessWikiLinks(source: string): string {
   let processed = source
     .replace(/```[\s\S]*?```/g, PROTECT)
     .replace(/`[^`]+`/g, PROTECT)
+    // Protect existing markdown links so /PageName inside their text or
+    // destination is not converted.  Covers inline links [text](url),
+    // reference links [text][ref] / [text][], and image variants.
+    .replace(/!?\[([^\]]*)\]\(([^)]*)\)/g, PROTECT)
+    .replace(/!?\[([^\]]*)\]\[([^\]]*)\]/g, PROTECT)
 
   // Replace /SlugName with a markdown link.  The slash must be at the
   // start of a line or preceded by whitespace so we don't accidentally
