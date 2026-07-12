@@ -83,14 +83,14 @@ class PageAttachmentIntegrationTest {
                         .content(pageJson))
                 .andExpect(status().isCreated())
                 .andReturn();
-        String slug = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("slug").asText();
+        String slug = objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("slug")
+                .asText();
 
         // Upload a text file attachment
-        MockMultipartFile file = new MockMultipartFile(
-                "file", "test.txt", "text/plain", "Hello, World!".getBytes());
-        mockMvc.perform(multipart("/pages/{slug}/attachments", slug)
-                        .file(file)
-                        .with(csrf()))
+        MockMultipartFile file = new MockMultipartFile("file", "test.txt", "text/plain", "Hello, World!".getBytes());
+        mockMvc.perform(multipart("/pages/{slug}/attachments", slug).file(file).with(csrf()))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.filename").value("test.txt"))
                 .andExpect(jsonPath("$.contentType").value("text/plain"))
@@ -102,8 +102,11 @@ class PageAttachmentIntegrationTest {
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$[0].filename").value("test.txt"))
                 .andReturn();
-        String attachmentId = objectMapper.readTree(listResult.getResponse().getContentAsString())
-                .get(0).get("id").asText();
+        String attachmentId = objectMapper
+                .readTree(listResult.getResponse().getContentAsString())
+                .get(0)
+                .get("id")
+                .asText();
 
         // Download the attachment data
         mockMvc.perform(get("/pages/{slug}/attachments/{id}/data", slug, attachmentId))
@@ -138,15 +141,15 @@ class PageAttachmentIntegrationTest {
                         .content(pageJson))
                 .andExpect(status().isCreated())
                 .andReturn();
-        String slug = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("slug").asText();
+        String slug = objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("slug")
+                .asText();
 
         // Upload a fake PNG image
         byte[] fakePng = new byte[] {(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
-        MockMultipartFile file = new MockMultipartFile(
-                "file", "image.png", "image/png", fakePng);
-        mockMvc.perform(multipart("/pages/{slug}/attachments", slug)
-                        .file(file)
-                        .with(csrf()))
+        MockMultipartFile file = new MockMultipartFile("file", "image.png", "image/png", fakePng);
+        mockMvc.perform(multipart("/pages/{slug}/attachments", slug).file(file).with(csrf()))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.filename").value("image.png"))
                 .andExpect(jsonPath("$.contentType").value("image/png"))
@@ -169,7 +172,10 @@ class PageAttachmentIntegrationTest {
                         .content(pageJson))
                 .andExpect(status().isCreated())
                 .andReturn();
-        String slug = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("slug").asText();
+        String slug = objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("slug")
+                .asText();
 
         UUID fakeId = UUID.randomUUID();
         mockMvc.perform(get("/pages/{slug}/attachments/{id}/data", slug, fakeId))

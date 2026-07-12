@@ -44,10 +44,7 @@ public class PageService {
     @Transactional(readOnly = true)
     public PageDto get(String slug) {
         Page page = requireBySlug(slug);
-        List<AttachmentDto> attachments = attachmentRepository.findByPageIdOrderByCreatedAtAsc(page.getId())
-                .stream()
-                .map(AttachmentDto::from)
-                .toList();
+        List<AttachmentDto> attachments = attachmentRepository.findMetadataByPageIdOrderByCreatedAtAsc(page.getId());
         return new PageDto(
                 page.getSlug(),
                 page.getTitle(),

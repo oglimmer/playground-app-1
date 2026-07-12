@@ -5,6 +5,7 @@ import com.oglimmer.wiki.entity.PageAttachment;
 import com.oglimmer.wiki.service.CurrentUserService;
 import com.oglimmer.wiki.service.PageAttachmentService;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -49,15 +50,20 @@ public class PageAttachmentController {
                 file.getBytes());
     }
 
+    private static final Set<String> SAFE_INLINE_TYPES =
+            Set.of("image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf", "text/plain");
+
     @GetMapping("/{attachmentId}/data")
     public ResponseEntity<byte[]> download(@PathVariable String slug, @PathVariable UUID attachmentId) {
         currentUserService.requireApproved();
         PageAttachment attachment = attachmentService.getAttachment(slug, attachmentId);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType(attachment.getContentType()));
-        headers.setContentDisposition(ContentDisposition.inline()
+        boolean safeInline = SAFE_INLINE_TYPES.contains(attachment.getContentType());
+        headers.setContentDisposition((safeInline ? ContentDisposition.inline() : ContentDisposition.attachment())
                 .filename(attachment.getFilename())
                 .build());
+        headers.set("X-Content-Type-Options", "nosniff");
         return new ResponseEntity<>(attachment.getData(), headers, HttpStatus.OK);
     }
 

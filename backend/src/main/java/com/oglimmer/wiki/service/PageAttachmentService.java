@@ -23,29 +23,22 @@ public class PageAttachmentService {
     @Transactional(readOnly = true)
     public List<AttachmentDto> listAttachments(String slug) {
         Page page = requirePageBySlug(slug);
-        return attachmentRepository.findByPageIdOrderByCreatedAtAsc(page.getId()).stream()
-                .map(AttachmentDto::from)
-                .toList();
+        return attachmentRepository.findMetadataByPageIdOrderByCreatedAtAsc(page.getId());
     }
 
     @Transactional
     public AttachmentDto upload(String slug, String filename, String contentType, byte[] data) {
         Page page = requirePageBySlug(slug);
-        PageAttachment attachment = new PageAttachment(
-                UUID.randomUUID(),
-                page,
-                filename,
-                contentType,
-                data.length,
-                data,
-                Instant.now());
+        PageAttachment attachment =
+                new PageAttachment(UUID.randomUUID(), page, filename, contentType, data.length, data, Instant.now());
         return AttachmentDto.from(attachmentRepository.save(attachment));
     }
 
     @Transactional(readOnly = true)
     public PageAttachment getAttachment(String slug, UUID attachmentId) {
         Page page = requirePageBySlug(slug);
-        return attachmentRepository.findById(attachmentId)
+        return attachmentRepository
+                .findById(attachmentId)
                 .filter(a -> a.getPage().getId().equals(page.getId()))
                 .orElseThrow(() -> new NotFoundException("Attachment not found: " + attachmentId));
     }
@@ -53,14 +46,14 @@ public class PageAttachmentService {
     @Transactional
     public void deleteAttachment(String slug, UUID attachmentId) {
         Page page = requirePageBySlug(slug);
-        PageAttachment attachment = attachmentRepository.findById(attachmentId)
+        PageAttachment attachment = attachmentRepository
+                .findById(attachmentId)
                 .filter(a -> a.getPage().getId().equals(page.getId()))
                 .orElseThrow(() -> new NotFoundException("Attachment not found: " + attachmentId));
         attachmentRepository.delete(attachment);
     }
 
     private Page requirePageBySlug(String slug) {
-        return pageRepository.findBySlug(slug)
-                .orElseThrow(() -> new NotFoundException("Page not found: " + slug));
+        return pageRepository.findBySlug(slug).orElseThrow(() -> new NotFoundException("Page not found: " + slug));
     }
 }
