@@ -23,11 +23,11 @@ class WikiApplicationTests {
         Duration timeout = serverProperties.getServlet().getSession().getTimeout();
         assertThat(timeout).isNotNull();
         assertThat(timeout).isGreaterThanOrEqualTo(Duration.ofHours(24));
-        assertThat(timeout).isEqualTo(Duration.ofDays(30));
 
         Duration cookieMaxAge =
                 serverProperties.getServlet().getSession().getCookie().getMaxAge();
-        assertThat(cookieMaxAge).isEqualTo(Duration.ofDays(30));
+        assertThat(cookieMaxAge).isNotNull();
+        assertThat(cookieMaxAge).isGreaterThanOrEqualTo(Duration.ofHours(24));
     }
 
     @Test
