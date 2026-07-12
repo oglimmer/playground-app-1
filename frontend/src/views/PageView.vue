@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { api, errMsg } from '../api'
 import { useAsyncData } from '../composables/useAsyncData'
 import { renderMarkdown } from '../lib/markdown'
-import type { Page } from '../types'
+import type { Attachment, Page } from '../types'
 
 const props = defineProps<{ slug: string }>()
 const router = useRouter()
@@ -32,9 +32,49 @@ async function doDelete() {
   }
 }
 
+function isImage(att: Attachment): boolean {
+  return att.contentType.startsWith('image/')
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString()
 }
+
+// --- Blob-URL based image loading with error handling ---
+
+const imageState = reactive<Record<string, { blobUrl: string | null; loading: boolean; error: string | null }>>({})
+const blobUrls: string[] = []
+
+function getImageState(att: Attachment) {
+  if (!imageState[att.id]) {
+    imageState[att.id] = { blobUrl: null, loading: true, error: null }
+    loadImage(att)
+  }
+  return imageState[att.id]
+}
+
+async function loadImage(att: Attachment) {
+  if (!page.value) return
+  try {
+    const url = await api.fetchAttachmentBlobUrl(page.value.slug, att.id)
+    blobUrls.push(url)
+    imageState[att.id] = { blobUrl: url, loading: false, error: null }
+  } catch (e) {
+    imageState[att.id] = { blobUrl: null, loading: false, error: errMsg(e) }
+  }
+}
+
+onUnmounted(() => {
+  for (const url of blobUrls) {
+    URL.revokeObjectURL(url)
+  }
+})
 </script>
 
 <template>
@@ -66,6 +106,38 @@ function formatDate(iso: string): string {
       <pre v-if="showRaw" class="raw">{{ page.content }}</pre>
       <!-- eslint-disable-next-line vue/no-v-html -- content is sanitized by DOMPurify -->
       <article v-else class="markdown-body" v-html="html" />
+
+      <section v-if="page.attachments && page.attachments.length" class="attachments">
+        <h2>Attachments</h2>
+        <div class="attachment-gallery">
+          <div v-for="att in page.attachments" :key="att.id" class="attachment-item">
+            <template v-if="isImage(att)">
+              <div v-if="getImageState(att).loading" class="attachment-image-placeholder">Loading…</div>
+              <div v-else-if="getImageState(att).error" class="attachment-image-placeholder attachment-image-error">
+                {{ getImageState(att).error }}
+              </div>
+              <img
+                v-else
+                :src="getImageState(att).blobUrl!"
+                :alt="att.filename"
+                class="attachment-image"
+                loading="lazy"
+              >
+            </template>
+            <template v-else>
+              <a
+                :href="api.attachmentUrl(page.slug, att.id)"
+                class="attachment-file"
+                :title="att.filename"
+              >
+                <span class="attachment-icon">📎</span>
+                <span class="attachment-name">{{ att.filename }}</span>
+                <span class="attachment-size muted">{{ formatBytes(att.size) }}</span>
+              </a>
+            </template>
+          </div>
+        </div>
+      </section>
     </template>
   </div>
 </template>
@@ -101,5 +173,75 @@ h1 {
   font-size: 0.9rem;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+.attachments {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+.attachments h2 {
+  font-size: 1.1rem;
+  margin: 0 0 1rem;
+}
+.attachment-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+.attachment-item {
+  display: flex;
+  align-items: center;
+}
+.attachment-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.attachment-image-error {
+  border-color: var(--danger, #dc3545);
+  color: var(--danger, #dc3545);
+}
+.attachment-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.attachment-file {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  text-decoration: none;
+  color: var(--text);
+  width: 100%;
+}
+.attachment-file:hover {
+  border-color: var(--accent);
+  text-decoration: none;
+}
+.attachment-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+.attachment-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+.attachment-size {
+  font-size: 0.8rem;
+  flex-shrink: 0;
 }
 </style>

@@ -27,3 +27,21 @@ Object.defineProperty(globalThis, 'localStorage', { value: storage, configurable
 if (typeof window !== 'undefined') {
   Object.defineProperty(window, 'localStorage', { value: storage, configurable: true })
 }
+
+// URL.createObjectURL / revokeObjectURL are not available in jsdom.
+if (typeof URL.createObjectURL === 'undefined') {
+  let nextId = 1
+  const store = new Map<string, string>()
+  Object.defineProperty(URL, 'createObjectURL', {
+    value: (blob: Blob) => {
+      const id = `blob:mock-${nextId++}`
+      store.set(id, blob.type)
+      return id
+    },
+    configurable: true,
+  })
+  Object.defineProperty(URL, 'revokeObjectURL', {
+    value: (url: string) => { store.delete(url) },
+    configurable: true,
+  })
+}

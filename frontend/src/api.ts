@@ -1,4 +1,4 @@
-import type { Page, PageSummary, SavePageRequest, User } from './types'
+import type { Attachment, Page, PageSummary, SavePageRequest, User } from './types'
 
 export class ApiError extends Error {
   status: number
@@ -71,6 +71,55 @@ export const api = {
   updatePage: (slug: string, req: SavePageRequest) =>
     request<Page>('PUT', `/pages/${encodeURIComponent(slug)}`, req),
   deletePage: (slug: string) => request<void>('DELETE', `/pages/${encodeURIComponent(slug)}`),
+
+  listAttachments: (slug: string) =>
+    request<Attachment[]>('GET', `/pages/${encodeURIComponent(slug)}/attachments`),
+  uploadAttachment: async (slug: string, file: File): Promise<Attachment> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const csrf = readCookie('XSRF-TOKEN')
+    const headers: Record<string, string> = {
+      'X-Requested-With': 'XMLHttpRequest',
+    }
+    if (csrf) headers['X-XSRF-TOKEN'] = csrf
+    const res = await fetch(`/api/pages/${encodeURIComponent(slug)}/attachments`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+      body: formData,
+    })
+    if (!res.ok) {
+      let message = `Upload failed (${res.status})`
+      try {
+        const data = await res.json()
+        if (data && typeof data.error === 'string') message = data.error
+      } catch { /* keep default */ }
+      throw new ApiError(res.status, message)
+    }
+    return (await res.json()) as Attachment
+  },
+  attachmentUrl: (slug: string, attachmentId: string) =>
+    `/api/pages/${encodeURIComponent(slug)}/attachments/${encodeURIComponent(attachmentId)}/data`,
+
+  /** Fetches binary attachment data and returns a blob: URL suitable for <img src>. */
+  fetchAttachmentBlobUrl: async (slug: string, attachmentId: string): Promise<string> => {
+    const res = await fetch(
+      `/api/pages/${encodeURIComponent(slug)}/attachments/${encodeURIComponent(attachmentId)}/data`,
+      { credentials: 'include' },
+    )
+    if (!res.ok) {
+      let message = `Failed to load attachment (${res.status})`
+      try {
+        const data = await res.json()
+        if (data && typeof data.error === 'string') message = data.error
+      } catch { /* keep default */ }
+      throw new ApiError(res.status, message)
+    }
+    const blob = await res.blob()
+    return URL.createObjectURL(blob)
+  },
+  deleteAttachment: (slug: string, attachmentId: string) =>
+    request<void>('DELETE', `/pages/${encodeURIComponent(slug)}/attachments/${encodeURIComponent(attachmentId)}`),
 
   adminListUsers: () => request<User[]>('GET', '/admin/users'),
   adminApprove: (id: string) => request<User>('POST', `/admin/users/${id}/approve`),

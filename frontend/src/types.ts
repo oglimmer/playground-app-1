@@ -18,11 +18,19 @@ export interface PageSummary {
   updatedBy: string
 }
 
+export interface Attachment {
+  id: string
+  filename: string
+  contentType: string
+  size: number
+}
+
 export interface Page {
   slug: string
   title: string
   content: string
   tags: string[]
+  attachments: Attachment[]
   createdAt: string
   updatedAt: string
   updatedBy: string
