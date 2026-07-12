@@ -1,10 +1,12 @@
 package com.oglimmer.wiki.service;
 
+import com.oglimmer.wiki.dto.AttachmentDto;
 import com.oglimmer.wiki.dto.PageDto;
 import com.oglimmer.wiki.dto.PageSummaryDto;
 import com.oglimmer.wiki.dto.SavePageRequest;
 import com.oglimmer.wiki.entity.Page;
 import com.oglimmer.wiki.exception.NotFoundException;
+import com.oglimmer.wiki.repository.PageAttachmentRepository;
 import com.oglimmer.wiki.repository.PageRepository;
 import java.time.Instant;
 import java.util.List;
@@ -18,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PageService {
 
     private final PageRepository pageRepository;
+    private final PageAttachmentRepository attachmentRepository;
 
     @Transactional(readOnly = true)
     public List<PageSummaryDto> list() {
@@ -40,7 +43,20 @@ public class PageService {
 
     @Transactional(readOnly = true)
     public PageDto get(String slug) {
-        return PageDto.from(requireBySlug(slug));
+        Page page = requireBySlug(slug);
+        List<AttachmentDto> attachments = attachmentRepository.findByPageIdOrderByCreatedAtAsc(page.getId())
+                .stream()
+                .map(AttachmentDto::from)
+                .toList();
+        return new PageDto(
+                page.getSlug(),
+                page.getTitle(),
+                page.getContent(),
+                page.getTags().stream().sorted().toList(),
+                attachments,
+                page.getCreatedAt(),
+                page.getUpdatedAt(),
+                page.getUpdatedBy());
     }
 
     @Transactional

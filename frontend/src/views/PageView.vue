@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { api, errMsg } from '../api'
 import { useAsyncData } from '../composables/useAsyncData'
 import { renderMarkdown } from '../lib/markdown'
-import type { Page } from '../types'
+import type { Attachment, Page } from '../types'
 
 const props = defineProps<{ slug: string }>()
 const router = useRouter()
@@ -30,6 +30,16 @@ async function doDelete() {
   } catch (e) {
     deleteError.value = errMsg(e)
   }
+}
+
+function isImage(att: Attachment): boolean {
+  return att.contentType.startsWith('image/')
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 function formatDate(iso: string): string {
@@ -66,6 +76,33 @@ function formatDate(iso: string): string {
       <pre v-if="showRaw" class="raw">{{ page.content }}</pre>
       <!-- eslint-disable-next-line vue/no-v-html -- content is sanitized by DOMPurify -->
       <article v-else class="markdown-body" v-html="html" />
+
+      <section v-if="page.attachments && page.attachments.length" class="attachments">
+        <h2>Attachments</h2>
+        <div class="attachment-gallery">
+          <div v-for="att in page.attachments" :key="att.id" class="attachment-item">
+            <template v-if="isImage(att)">
+              <img
+                :src="api.attachmentDataUrl(page.slug, att.id)"
+                :alt="att.filename"
+                class="attachment-image"
+                loading="lazy"
+              >
+            </template>
+            <template v-else>
+              <a
+                :href="api.attachmentDataUrl(page.slug, att.id)"
+                class="attachment-file"
+                :title="att.filename"
+              >
+                <span class="attachment-icon">📎</span>
+                <span class="attachment-name">{{ att.filename }}</span>
+                <span class="attachment-size muted">{{ formatBytes(att.size) }}</span>
+              </a>
+            </template>
+          </div>
+        </div>
+      </section>
     </template>
   </div>
 </template>
@@ -101,5 +138,60 @@ h1 {
   font-size: 0.9rem;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+.attachments {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+.attachments h2 {
+  font-size: 1.1rem;
+  margin: 0 0 1rem;
+}
+.attachment-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+.attachment-item {
+  display: flex;
+  align-items: center;
+}
+.attachment-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.attachment-file {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  text-decoration: none;
+  color: var(--text);
+  width: 100%;
+}
+.attachment-file:hover {
+  border-color: var(--accent);
+  text-decoration: none;
+}
+.attachment-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+.attachment-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+.attachment-size {
+  font-size: 0.8rem;
+  flex-shrink: 0;
 }
 </style>

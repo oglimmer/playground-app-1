@@ -9,6 +9,7 @@ public record PageDto(
         String title,
         String content,
         List<String> tags,
+        List<AttachmentDto> attachments,
         Instant createdAt,
         Instant updatedAt,
         String updatedBy) {
@@ -19,6 +20,7 @@ public record PageDto(
                 page.getTitle(),
                 page.getContent(),
                 page.getTags().stream().sorted().toList(),
+                List.of(), // populated by PageService after fetching attachments
                 page.getCreatedAt(),
                 page.getUpdatedAt(),
                 page.getUpdatedBy());
