@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api, errMsg } from '../api'
 import { renderMarkdown } from '../lib/markdown'
@@ -25,6 +25,30 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const preview = computed(() => renderMarkdown(content.value))
 const canSave = computed(() => title.value.trim().length > 0 && !saving.value)
 
+// --- Blob-URL based thumbnail loading ---
+
+const thumbState = reactive<Record<string, { blobUrl: string | null; loading: boolean; error: string | null }>>({})
+const thumbBlobUrls: string[] = []
+
+function getThumbState(att: Attachment) {
+  if (!thumbState[att.id]) {
+    thumbState[att.id] = { blobUrl: null, loading: true, error: null }
+    loadThumb(att)
+  }
+  return thumbState[att.id]
+}
+
+async function loadThumb(att: Attachment) {
+  if (!props.slug) return
+  try {
+    const url = await api.fetchAttachmentBlobUrl(props.slug, att.id)
+    thumbBlobUrls.push(url)
+    thumbState[att.id] = { blobUrl: url, loading: false, error: null }
+  } catch {
+    thumbState[att.id] = { blobUrl: null, loading: false, error: null }
+  }
+}
+
 onMounted(async () => {
   if (!props.slug) return
   loading.value = true
@@ -38,6 +62,12 @@ onMounted(async () => {
     error.value = errMsg(e)
   } finally {
     loading.value = false
+  }
+})
+
+onUnmounted(() => {
+  for (const url of thumbBlobUrls) {
+    URL.revokeObjectURL(url)
   }
 })
 
@@ -163,10 +193,12 @@ async function deleteAttachment(attId: string) {
         <div v-for="att in attachments" :key="att.id" class="att-row">
           <template v-if="isImageType(att)">
             <img
-              :src="api.attachmentDataUrl(props.slug!, att.id)"
+              v-if="getThumbState(att).blobUrl"
+              :src="getThumbState(att).blobUrl!"
               :alt="att.filename"
               class="att-thumb"
             >
+            <span v-else class="att-thumb-placeholder">…</span>
           </template>
           <span v-else class="att-icon">📎</span>
           <span class="att-name">{{ att.filename }}</span>
@@ -270,6 +302,18 @@ h1 {
   object-fit: cover;
   border-radius: 4px;
   border: 1px solid var(--border);
+}
+.att-thumb-placeholder {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  font-size: 0.8rem;
+  flex-shrink: 0;
 }
 .att-icon {
   font-size: 1.2rem;

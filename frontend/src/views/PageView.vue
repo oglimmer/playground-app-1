@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { api, errMsg } from '../api'
 import { useAsyncData } from '../composables/useAsyncData'
@@ -45,6 +45,36 @@ function formatBytes(bytes: number): string {
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString()
 }
+
+// --- Blob-URL based image loading with error handling ---
+
+const imageState = reactive<Record<string, { blobUrl: string | null; loading: boolean; error: string | null }>>({})
+const blobUrls: string[] = []
+
+function getImageState(att: Attachment) {
+  if (!imageState[att.id]) {
+    imageState[att.id] = { blobUrl: null, loading: true, error: null }
+    loadImage(att)
+  }
+  return imageState[att.id]
+}
+
+async function loadImage(att: Attachment) {
+  if (!page.value) return
+  try {
+    const url = await api.fetchAttachmentBlobUrl(page.value.slug, att.id)
+    blobUrls.push(url)
+    imageState[att.id] = { blobUrl: url, loading: false, error: null }
+  } catch (e) {
+    imageState[att.id] = { blobUrl: null, loading: false, error: errMsg(e) }
+  }
+}
+
+onUnmounted(() => {
+  for (const url of blobUrls) {
+    URL.revokeObjectURL(url)
+  }
+})
 </script>
 
 <template>
@@ -82,8 +112,13 @@ function formatDate(iso: string): string {
         <div class="attachment-gallery">
           <div v-for="att in page.attachments" :key="att.id" class="attachment-item">
             <template v-if="isImage(att)">
+              <div v-if="getImageState(att).loading" class="attachment-image-placeholder">Loading…</div>
+              <div v-else-if="getImageState(att).error" class="attachment-image-placeholder attachment-image-error">
+                {{ getImageState(att).error }}
+              </div>
               <img
-                :src="api.attachmentDataUrl(page.slug, att.id)"
+                v-else
+                :src="getImageState(att).blobUrl!"
                 :alt="att.filename"
                 class="attachment-image"
                 loading="lazy"
@@ -91,7 +126,7 @@ function formatDate(iso: string): string {
             </template>
             <template v-else>
               <a
-                :href="api.attachmentDataUrl(page.slug, att.id)"
+                :href="api.attachmentUrl(page.slug, att.id)"
                 class="attachment-file"
                 :title="att.filename"
               >
@@ -156,6 +191,21 @@ h1 {
 .attachment-item {
   display: flex;
   align-items: center;
+}
+.attachment-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.attachment-image-error {
+  border-color: var(--danger, #dc3545);
+  color: var(--danger, #dc3545);
 }
 .attachment-image {
   max-width: 100%;

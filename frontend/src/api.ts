@@ -98,8 +98,26 @@ export const api = {
     }
     return (await res.json()) as Attachment
   },
-  attachmentDataUrl: (slug: string, attachmentId: string) =>
+  attachmentUrl: (slug: string, attachmentId: string) =>
     `/api/pages/${encodeURIComponent(slug)}/attachments/${encodeURIComponent(attachmentId)}/data`,
+
+  /** Fetches binary attachment data and returns a blob: URL suitable for <img src>. */
+  fetchAttachmentBlobUrl: async (slug: string, attachmentId: string): Promise<string> => {
+    const res = await fetch(
+      `/api/pages/${encodeURIComponent(slug)}/attachments/${encodeURIComponent(attachmentId)}/data`,
+      { credentials: 'include' },
+    )
+    if (!res.ok) {
+      let message = `Failed to load attachment (${res.status})`
+      try {
+        const data = await res.json()
+        if (data && typeof data.error === 'string') message = data.error
+      } catch { /* keep default */ }
+      throw new ApiError(res.status, message)
+    }
+    const blob = await res.blob()
+    return URL.createObjectURL(blob)
+  },
   deleteAttachment: (slug: string, attachmentId: string) =>
     request<void>('DELETE', `/pages/${encodeURIComponent(slug)}/attachments/${encodeURIComponent(attachmentId)}`),
 
