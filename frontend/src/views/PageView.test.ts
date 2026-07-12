@@ -3,6 +3,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import PageView from './PageView.vue'
+import { api } from '../api'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -14,38 +15,28 @@ const router = createRouter({
 })
 
 describe('PageView attachments', () => {
-  let fetchMock: ReturnType<typeof vi.fn>
-
   beforeEach(() => {
-    fetchMock = vi.fn()
-    vi.stubGlobal('fetch', fetchMock)
+    router.push('/pages/my-page')
   })
 
   afterEach(() => {
-    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
   })
 
   it('renders image attachments as <img> tags with a blob URL', async () => {
-    fetchMock.mockImplementation(async (url: string) => {
-      if (url === '/api/pages/my-page') {
-        return new Response(JSON.stringify({
-          slug: 'my-page',
-          title: 'Test Page',
-          content: 'Hello',
-          tags: [],
-          attachments: [{ id: 'img-1', filename: 'photo.png', contentType: 'image/png', size: 1024 }],
-          createdAt: '2025-01-01T00:00:00Z',
-          updatedAt: '2025-01-02T00:00:00Z',
-          updatedBy: 'tester',
-        }), { status: 200 })
-      }
-      if (url === '/api/pages/my-page/attachments/img-1/data') {
-        return new Response(new Blob([new Uint8Array([0x89, 0x50, 0x4E, 0x47])], { type: 'image/png' }), {
-          status: 200, headers: { 'Content-Type': 'image/png' },
-        })
-      }
-      return new Response('{}', { status: 200 })
-    })
+    const pageData = {
+      slug: 'my-page',
+      title: 'Test Page',
+      content: 'Hello',
+      tags: [],
+      attachments: [{ id: 'img-1', filename: 'photo.png', contentType: 'image/png', size: 1024 }],
+      createdAt: '2025-01-01T00:00:00Z',
+      updatedAt: '2025-01-02T00:00:00Z',
+      updatedBy: 'tester',
+    }
+
+    const getPageSpy = vi.spyOn(api, 'getPage').mockResolvedValue(pageData)
+    const fetchBlobSpy = vi.spyOn(api, 'fetchAttachmentBlobUrl').mockResolvedValue('blob:mock-img-1')
 
     const wrapper = mount(PageView, {
       props: { slug: 'my-page' },
@@ -59,28 +50,32 @@ describe('PageView attachments', () => {
     await flushPromises()
     await nextTick()
 
+    // Verify the production code path: component called api.getPage with the correct slug
+    expect(getPageSpy).toHaveBeenCalledWith('my-page')
+
+    // Verify blob URL was fetched for the image attachment
+    expect(fetchBlobSpy).toHaveBeenCalledWith('my-page', 'img-1')
+
     const img = wrapper.find('img.attachment-image')
     expect(img.exists()).toBe(true)
-    expect(img.attributes('src')).toMatch(/^blob:/)
+    expect(img.attributes('src')).toBe('blob:mock-img-1')
     expect(img.attributes('alt')).toBe('photo.png')
   })
 
   it('renders non-image attachments as download links', async () => {
-    fetchMock.mockImplementation(async (url: string) => {
-      if (url === '/api/pages/my-page') {
-        return new Response(JSON.stringify({
-          slug: 'my-page',
-          title: 'Test Page',
-          content: 'Hello',
-          tags: [],
-          attachments: [{ id: 'pdf-1', filename: 'doc.pdf', contentType: 'application/pdf', size: 5120 }],
-          createdAt: '2025-01-01T00:00:00Z',
-          updatedAt: '2025-01-02T00:00:00Z',
-          updatedBy: 'tester',
-        }), { status: 200 })
-      }
-      return new Response('{}', { status: 200 })
-    })
+    const pageData = {
+      slug: 'my-page',
+      title: 'Test Page',
+      content: 'Hello',
+      tags: [],
+      attachments: [{ id: 'pdf-1', filename: 'doc.pdf', contentType: 'application/pdf', size: 5120 }],
+      createdAt: '2025-01-01T00:00:00Z',
+      updatedAt: '2025-01-02T00:00:00Z',
+      updatedBy: 'tester',
+    }
+
+    const getPageSpy = vi.spyOn(api, 'getPage').mockResolvedValue(pageData)
+    // fetchAttachmentBlobUrl should NOT be called for non-image attachments
 
     const wrapper = mount(PageView, {
       props: { slug: 'my-page' },
@@ -90,32 +85,32 @@ describe('PageView attachments', () => {
     await flushPromises()
     await nextTick()
 
+    // Verify the production code path: component called api.getPage with the correct slug
+    expect(getPageSpy).toHaveBeenCalledWith('my-page')
+
     const link = wrapper.find('a.attachment-file')
     expect(link.exists()).toBe(true)
-    expect(link.attributes('href')).toBe('/api/pages/my-page/attachments/pdf-1/data')
+    // Use the real api.attachmentUrl to build the expected URL — this exercises
+    // the production code rather than re-implementing URL construction inline.
+    expect(link.attributes('href')).toBe(api.attachmentUrl('my-page', 'pdf-1'))
     expect(link.text()).toContain('doc.pdf')
     expect(link.text()).toContain('5.0 KB')
   })
 
   it('shows an error placeholder when an image fails to load', async () => {
-    fetchMock.mockImplementation(async (url: string) => {
-      if (url === '/api/pages/my-page') {
-        return new Response(JSON.stringify({
-          slug: 'my-page',
-          title: 'Test Page',
-          content: 'Hello',
-          tags: [],
-          attachments: [{ id: 'bad-img', filename: 'broken.jpg', contentType: 'image/jpeg', size: 99 }],
-          createdAt: '2025-01-01T00:00:00Z',
-          updatedAt: '2025-01-02T00:00:00Z',
-          updatedBy: 'tester',
-        }), { status: 200 })
-      }
-      if (url === '/api/pages/my-page/attachments/bad-img/data') {
-        return new Response('{"error":"Not found"}', { status: 404, headers: { 'Content-Type': 'application/json' } })
-      }
-      return new Response('{}', { status: 200 })
-    })
+    const pageData = {
+      slug: 'my-page',
+      title: 'Test Page',
+      content: 'Hello',
+      tags: [],
+      attachments: [{ id: 'bad-img', filename: 'broken.jpg', contentType: 'image/jpeg', size: 99 }],
+      createdAt: '2025-01-01T00:00:00Z',
+      updatedAt: '2025-01-02T00:00:00Z',
+      updatedBy: 'tester',
+    }
+
+    const getPageSpy = vi.spyOn(api, 'getPage').mockResolvedValue(pageData)
+    vi.spyOn(api, 'fetchAttachmentBlobUrl').mockRejectedValue(new Error('Not found'))
 
     const wrapper = mount(PageView, {
       props: { slug: 'my-page' },
@@ -126,6 +121,9 @@ describe('PageView attachments', () => {
     await nextTick()
     await flushPromises()
     await nextTick()
+
+    // Verify the production code path: component called api.getPage with the correct slug
+    expect(getPageSpy).toHaveBeenCalledWith('my-page')
 
     const errorDiv = wrapper.find('.attachment-image-error')
     expect(errorDiv.exists()).toBe(true)
