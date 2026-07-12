@@ -3,14 +3,32 @@ package com.oglimmer.wiki;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.oglimmer.wiki.service.Slugs;
+import java.time.Duration;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.web.ServerProperties;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
 class WikiApplicationTests {
 
+    @Autowired
+    private ServerProperties serverProperties;
+
     @Test
     void contextLoads() {}
+
+    @Test
+    void sessionStaysAliveForAtLeastTwentyFourHours() {
+        Duration timeout = serverProperties.getServlet().getSession().getTimeout();
+        assertThat(timeout).isNotNull();
+        assertThat(timeout).isGreaterThanOrEqualTo(Duration.ofHours(24));
+        assertThat(timeout).isEqualTo(Duration.ofDays(30));
+
+        Duration cookieMaxAge =
+                serverProperties.getServlet().getSession().getCookie().getMaxAge();
+        assertThat(cookieMaxAge).isEqualTo(Duration.ofDays(30));
+    }
 
     @Test
     void slugifyProducesUrlSafeSlugs() {

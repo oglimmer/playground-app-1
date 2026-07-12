@@ -2,6 +2,12 @@ server:
   port: 8080
   servlet:
     context-path: /api
+    session:
+      timeout: 30d
+      cookie:
+        max-age: 30d
+        http-only: true
+        same-site: lax
   forward-headers-strategy: framework
 
 spring:
