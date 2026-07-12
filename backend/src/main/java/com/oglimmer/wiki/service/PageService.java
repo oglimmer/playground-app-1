@@ -27,6 +27,18 @@ public class PageService {
     }
 
     @Transactional(readOnly = true)
+    public List<PageSummaryDto> listByTag(String tag) {
+        return pageRepository.findAllByTagsContainingOrderByTitleAsc(tag).stream()
+                .map(PageSummaryDto::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> listTags() {
+        return pageRepository.findDistinctTags();
+    }
+
+    @Transactional(readOnly = true)
     public PageDto get(String slug) {
         return PageDto.from(requireBySlug(slug));
     }
@@ -41,7 +53,8 @@ public class PageService {
                 request.content(),
                 now,
                 now,
-                editorName);
+                editorName,
+                Tags.normalize(request.tags() == null ? List.of() : request.tags()));
         return PageDto.from(pageRepository.save(page));
     }
 
@@ -50,6 +63,7 @@ public class PageService {
         Page page = requireBySlug(slug);
         page.setTitle(request.title().trim());
         page.setContent(request.content());
+        page.setTags(Tags.normalize(request.tags() == null ? List.of() : request.tags()));
         page.setUpdatedAt(Instant.now());
         page.setUpdatedBy(editorName);
         return PageDto.from(pageRepository.save(page));

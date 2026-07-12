@@ -1,11 +1,21 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { api } from '../api'
 import { useAsyncData } from '../composables/useAsyncData'
 import type { PageSummary } from '../types'
 
-const { data: pages, loading, error } = useAsyncData<PageSummary[]>(() => api.listPages(), [])
+const props = defineProps<{ tag?: string }>()
+
+const { data: pages, loading, error, reload } = useAsyncData<PageSummary[]>(
+  () => api.listPages(props.tag),
+  [],
+)
 const query = ref('')
+
+watch(
+  () => props.tag,
+  () => reload(),
+)
 
 const filtered = computed(() => {
   const q = query.value.trim().toLowerCase()
@@ -25,7 +35,7 @@ function formatDate(iso: string): string {
 <template>
   <div class="container">
     <div class="page-head">
-      <h1>All pages</h1>
+      <h1>{{ tag ? `Pages tagged #${tag}` : 'All pages' }}</h1>
       <RouterLink to="/new" class="btn btn-primary">New page</RouterLink>
     </div>
 
@@ -46,6 +56,16 @@ function formatDate(iso: string): string {
     <ul v-else class="page-list">
       <li v-for="p in filtered" :key="p.slug" class="card page-row">
         <RouterLink :to="`/pages/${p.slug}`" class="page-title">{{ p.title }}</RouterLink>
+        <span v-if="p.tags.length" class="tags">
+          <RouterLink
+            v-for="t in p.tags"
+            :key="t"
+            :to="`/tags/${encodeURIComponent(t)}`"
+            class="tag"
+          >
+            #{{ t }}
+          </RouterLink>
+        </span>
         <span class="muted meta">Updated {{ formatDate(p.updatedAt) }} by {{ p.updatedBy }}</span>
       </li>
     </ul>
@@ -87,5 +107,14 @@ h1 {
 }
 .meta {
   font-size: 0.85rem;
+}
+.tags {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.tag {
+  font-size: 0.8rem;
+  color: var(--accent);
 }
 </style>

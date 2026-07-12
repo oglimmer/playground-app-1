@@ -25,6 +25,7 @@ async function onLogout() {
       <nav class="nav">
         <RouterLink to="/">Index</RouterLink>
         <RouterLink to="/new">New page</RouterLink>
+        <RouterLink to="/tags">Tags</RouterLink>
         <RouterLink v-if="auth.isAdmin" to="/admin">Admin</RouterLink>
       </nav>
       <div class="spacer" />
