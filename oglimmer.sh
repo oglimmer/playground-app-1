@@ -373,7 +373,9 @@ execute_test() {
   log_info "Backend tests"
   ( cd "$BACKEND_DIR" && ./mvnw -q test )
   log_info "Frontend tests"
-  ( cd "$FRONTEND_DIR" && npm run test )
+  # Install deps on a fresh clone (CI / coding-agent worker) where node_modules
+  # is absent; a local dev tree already has them so this is a no-op there.
+  ( cd "$FRONTEND_DIR" && { [ -d node_modules ] || npm ci; } && npm run test )
   log_ok "Tests passed"
 }
 
