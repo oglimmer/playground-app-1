@@ -22,6 +22,16 @@ const html = computed(() => (page.value ? renderMarkdown(page.value.content) : '
 const confirmingDelete = ref(false)
 const deleteError = ref<string | null>(null)
 
+const zoomedImage = ref<string | null>(null)
+
+function openZoom(blobUrl: string) {
+  zoomedImage.value = blobUrl
+}
+
+function closeZoom() {
+  zoomedImage.value = null
+}
+
 async function doDelete() {
   deleteError.value = null
   try {
@@ -122,6 +132,7 @@ onUnmounted(() => {
                 :alt="att.filename"
                 class="attachment-image"
                 loading="lazy"
+                @click="openZoom(getImageState(att).blobUrl!)"
               >
             </template>
             <template v-else>
@@ -138,6 +149,12 @@ onUnmounted(() => {
           </div>
         </div>
       </section>
+
+      <Teleport to="body">
+        <div v-if="zoomedImage" class="zoom-overlay" @click="closeZoom">
+          <img :src="zoomedImage" class="zoom-image">
+        </div>
+      </Teleport>
     </template>
   </div>
 </template>
@@ -212,6 +229,7 @@ h1 {
   height: auto;
   border-radius: var(--radius);
   border: 1px solid var(--border);
+  cursor: pointer;
 }
 .attachment-file {
   display: flex;
@@ -243,5 +261,21 @@ h1 {
 .attachment-size {
   font-size: 0.8rem;
   flex-shrink: 0;
+}
+.zoom-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  cursor: pointer;
+}
+.zoom-image {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: var(--radius);
 }
 </style>
