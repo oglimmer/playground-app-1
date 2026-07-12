@@ -77,7 +77,9 @@ frontend:
 # Set enabled=false to use an external DB; then set backend DB_URL/username via
 # externalDatabase and keep POSTGRES_PASSWORD in the secret.
 postgres:
-  enabled: true
+  # Migrated to the central shared PostgreSQL (postgres.default.svc) — see
+  # externalDatabase below. The bundled StatefulSet is no longer deployed.
+  enabled: false
   image:
     # Pin the MAJOR version — the PVC data dir is tied to it; a major bump makes
     # Postgres refuse to start. Freeze this in renovate.json.
@@ -97,9 +99,9 @@ postgres:
       memory: 512Mi
 
 externalDatabase:
-  # Used only when postgres.enabled=false.
-  url: "jdbc:postgresql://my-db-host:5432/wiki"
-  username: "wiki"
+  # Used only when postgres.enabled=false. Central shared PostgreSQL (postgres-0).
+  url: "jdbc:postgresql://postgres.default.svc.cluster.local:5432/wiki_prod"
+  username: "wiki-app"
 
 # ── Pod scheduling / security ────────────────────────────────────────────────
 podSecurityContext:
