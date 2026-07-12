@@ -1,16 +1,21 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { api } from '../api'
 import { useAsyncData } from '../composables/useAsyncData'
 import type { PageSummary } from '../types'
 
 const props = defineProps<{ tag?: string }>()
 
-const { data: pages, loading, error } = useAsyncData<PageSummary[]>(
+const { data: pages, loading, error, reload } = useAsyncData<PageSummary[]>(
   () => api.listPages(props.tag),
   [],
 )
 const query = ref('')
+
+watch(
+  () => props.tag,
+  () => reload(),
+)
 
 const filtered = computed(() => {
   const q = query.value.trim().toLowerCase()

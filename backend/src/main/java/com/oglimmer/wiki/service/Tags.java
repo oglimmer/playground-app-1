@@ -3,6 +3,7 @@ package com.oglimmer.wiki.service;
 import com.oglimmer.wiki.exception.ValidationException;
 import java.util.Collection;
 import java.util.LinkedHashSet;
+import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -17,7 +18,7 @@ public final class Tags {
         Set<String> result = new LinkedHashSet<>();
         for (String raw : rawTags) {
             if (raw == null) continue;
-            String trimmed = raw.trim().toLowerCase();
+            String trimmed = raw.trim().toLowerCase(Locale.ROOT);
             if (trimmed.isEmpty()) continue;
             if (!VALID_TAG.matcher(trimmed).matches()) {
                 throw new ValidationException("Invalid tag: " + raw);

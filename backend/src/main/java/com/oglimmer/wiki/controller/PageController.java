@@ -8,6 +8,7 @@ import com.oglimmer.wiki.service.CurrentUserService;
 import com.oglimmer.wiki.service.PageService;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -38,7 +39,7 @@ public class PageController {
         currentUserService.requireApproved();
         return (tag == null || tag.isBlank())
                 ? pageService.list()
-                : pageService.listByTag(tag.trim().toLowerCase());
+                : pageService.listByTag(tag.trim().toLowerCase(Locale.ROOT));
     }
 
     @GetMapping("/tags")

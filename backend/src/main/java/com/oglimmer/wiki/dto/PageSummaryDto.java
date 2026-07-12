@@ -4,8 +4,7 @@ import com.oglimmer.wiki.entity.Page;
 import java.time.Instant;
 import java.util.List;
 
-public record PageSummaryDto(
-        String slug, String title, List<String> tags, Instant updatedAt, String updatedBy) {
+public record PageSummaryDto(String slug, String title, List<String> tags, Instant updatedAt, String updatedBy) {
 
     public static PageSummaryDto from(Page page) {
         return new PageSummaryDto(

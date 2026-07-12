@@ -52,6 +52,6 @@ public class Page {
     /** Normalized, URL-safe tags associated with this page. */
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "page_tag", joinColumns = @JoinColumn(name = "page_id"))
-    @Column(name = "tag", nullable = false)
+    @Column(name = "tag", nullable = false, length = 64)
     private Set<String> tags = new LinkedHashSet<>();
 }
