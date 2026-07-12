@@ -88,6 +88,12 @@ describe('wiki page links', () => {
     expect(html).not.toContain('/pages/bar')
   })
 
+  it('does not convert /PageName in reference link definition destinations', () => {
+    const html = renderMarkdown('[see][p]\n\n[p]: /page-name')
+    // The reference destination /page-name must stay intact, not become a wiki-link
+    expect(html).not.toContain('/pages/page-name')
+  })
+
   it('does not process /PageName inside inline code', () => {
     const html = renderMarkdown('use `/api` to call')
     expect(html).toContain('<code>/api</code>')

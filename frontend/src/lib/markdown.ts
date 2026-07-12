@@ -24,9 +24,12 @@ function preprocessWikiLinks(source: string): string {
     .replace(/`[^`]+`/g, PROTECT)
     // Protect existing markdown links so /PageName inside their text or
     // destination is not converted.  Covers inline links [text](url),
-    // reference links [text][ref] / [text][], and image variants.
+    // reference links [text][ref] / [text][], image variants, and
+    // reference link definitions [id]: url (which would otherwise
+    // corrupt destinations like [p]: /page-name).
     .replace(/!?\[([^\]]*)\]\(([^)]*)\)/g, PROTECT)
     .replace(/!?\[([^\]]*)\]\[([^\]]*)\]/g, PROTECT)
+    .replace(/^\[([^\]]+)\]:\s+\S+/gm, PROTECT)
 
   // Replace /SlugName with a markdown link.  The slash must be at the
   // start of a line or preceded by whitespace so we don't accidentally
