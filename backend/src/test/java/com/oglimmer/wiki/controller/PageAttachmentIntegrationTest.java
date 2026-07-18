@@ -1,5 +1,6 @@
 package com.oglimmer.wiki.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -15,6 +16,7 @@ import com.oglimmer.wiki.entity.Role;
 import com.oglimmer.wiki.entity.UserStatus;
 import com.oglimmer.wiki.repository.AppUserRepository;
 import com.oglimmer.wiki.service.CurrentUserService;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -154,6 +156,58 @@ class PageAttachmentIntegrationTest {
                 .andExpect(jsonPath("$.filename").value("image.png"))
                 .andExpect(jsonPath("$.contentType").value("image/png"))
                 .andExpect(jsonPath("$.size").value(8));
+    }
+
+    @Test
+    @WithMockUser
+    void downloadEncodesNonAsciiFilenameInContentDisposition() throws Exception {
+        // Create a page
+        Map<String, Object> pageRequest = Map.of(
+                "title", "Non-ASCII Filename Page",
+                "content", "Some content",
+                "tags", List.of());
+        String pageJson = objectMapper.writeValueAsString(pageRequest);
+
+        var createResult = mockMvc.perform(post("/pages")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(pageJson))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String slug = objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("slug")
+                .asText();
+
+        // macOS screenshot names contain U+202F NARROW NO-BREAK SPACE before AM/PM, which is
+        // not mappable to ISO-8859-1. Unencoded, Tomcat drops the whole Content-Disposition header.
+        String filename = "Screenshot 2026-07-09 at 4.14.21\u202fPM 1.png";
+        byte[] fakePng = new byte[] {(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
+        MockMultipartFile file = new MockMultipartFile("file", filename, "image/png", fakePng);
+        mockMvc.perform(multipart("/pages/{slug}/attachments", slug).file(file).with(csrf()))
+                .andExpect(status().isCreated());
+
+        var listResult = mockMvc.perform(get("/pages/{slug}/attachments", slug))
+                .andExpect(status().isOk())
+                .andReturn();
+        String attachmentId = objectMapper
+                .readTree(listResult.getResponse().getContentAsString())
+                .get(0)
+                .get("id")
+                .asText();
+
+        var downloadResult = mockMvc.perform(get("/pages/{slug}/attachments/{id}/data", slug, attachmentId))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String disposition = downloadResult.getResponse().getHeader("Content-Disposition");
+        assertThat(disposition).isNotNull();
+        // RFC 5987 encoded, so the U+202F never appears literally in the header
+        assertThat(disposition).contains("filename*=UTF-8''");
+        assertThat(disposition).doesNotContain("\u202f");
+        // The property Tomcat enforces: the header must be encodable as ISO-8859-1
+        assertThat(StandardCharsets.ISO_8859_1.newEncoder().canEncode(disposition))
+                .isTrue();
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.oglimmer.wiki.dto.AttachmentDto;
 import com.oglimmer.wiki.entity.PageAttachment;
 import com.oglimmer.wiki.service.CurrentUserService;
 import com.oglimmer.wiki.service.PageAttachmentService;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -61,7 +62,7 @@ public class PageAttachmentController {
         headers.setContentType(MediaType.parseMediaType(attachment.getContentType()));
         boolean safeInline = SAFE_INLINE_TYPES.contains(attachment.getContentType());
         headers.setContentDisposition((safeInline ? ContentDisposition.inline() : ContentDisposition.attachment())
-                .filename(attachment.getFilename())
+                .filename(attachment.getFilename(), StandardCharsets.UTF_8)
                 .build());
         headers.set("X-Content-Type-Options", "nosniff");
         return new ResponseEntity<>(attachment.getData(), headers, HttpStatus.OK);
