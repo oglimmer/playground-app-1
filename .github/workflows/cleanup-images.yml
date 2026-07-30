@@ -20,7 +20,7 @@ jobs:
       matrix:
         package: [wiki-backend, wiki-frontend]
     steps:
-      - uses: dataaxiom/ghcr-cleanup-action@cd0cdb37c2f1c2ee36bebc93aa2b3cf4bcf26d81 # v1
+      - uses: dataaxiom/ghcr-cleanup-action@d52806a0dc70b430571a37da1fde39733ffd640f # v1.2.2
         with:
           package: ${{ matrix.package }}
           owner: oglimmer
